@@ -6,8 +6,9 @@ Protótipo desktop para Windows, Delphi 10.3 Rio, VCL e FireDAC/SQLite. Uso em u
 
 1. Abra `LogicaPDV.dpr` em File > Open Project no Delphi 10.3.
 2. Salve o projeto para o Delphi gerar seu `.dproj`. Selecione Windows 32-bit inicialmente.
-3. Compile com Build e execute. A interface é criada em código, sem arquivos DFM.
-4. É necessária uma edição/instalação com VCL e FireDAC SQLite disponíveis. A unidade `FireDAC.Phys.SQLiteWrapper.Stat` seleciona o vínculo estático do SQLite fornecido pelo Delphi. Se essa unidade não estiver disponível, confira os componentes instalados e o Library Path; não baixe DLLs de sites desconhecidos.
+3. Compile com Build. A interface é criada em código, sem arquivos DFM.
+4. Baixe a biblioteca oficial em https://www.sqlite.org/download.html, seção **Precompiled Binaries for Windows**: escolha **DLL x86** para Win32, mesmo se o Windows for 64 bits; escolha DLL x64 somente para um executável Win64. Extraia `sqlite3.dll` ao lado de `LogicaPDV.exe` (normalmente `Win32\Debug`) e execute com F9. Não é necessário o pacote de ferramentas de linha de comando.
+5. É necessária uma edição/instalação com VCL e FireDAC SQLite disponíveis. O projeto usa `TFDPhysSQLiteDriverLink` com caminho explícito para a DLL ao lado do executável; não depende da unidade `FireDAC.Phys.SQLiteWrapper.Stat`. Distribua a DLL correta junto com o programa.
 
 O banco é criado automaticamente em `%LOCALAPPDATA%\LogicaPDV\pdv.sqlite`. Não requer servidor. Cada usuário Windows tem um banco independente. Não há migração de esquema implementada; preserve bancos reais antes de alterar a estrutura.
 

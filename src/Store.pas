@@ -7,7 +7,7 @@ uses
   FireDAC.Comp.Client, FireDAC.Stan.Def, FireDAC.Stan.Async,
   FireDAC.Stan.Param, FireDAC.DApt, FireDAC.Phys, FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.UI.Intf,
-  FireDAC.VCLUI.Wait, FireDAC.Comp.UI, FireDAC.Phys.SQLiteWrapper.Stat;
+  FireDAC.VCLUI.Wait, FireDAC.Comp.UI;
 
 type
   TStore = class
@@ -25,10 +25,16 @@ implementation
 constructor TStore.Create;
 var
   Folder: string;
+  Driver: TFDPhysSQLiteDriverLink;
 begin
   inherited;
   FConnection := TFDConnection.Create(nil);
   try
+    Driver := TFDPhysSQLiteDriverLink.Create(FConnection);
+    Driver.VendorLib := TPath.Combine(ExtractFilePath(ParamStr(0)), 'sqlite3.dll');
+    if not FileExists(Driver.VendorLib) then
+      raise Exception.Create('Copie sqlite3.dll da mesma arquitetura do aplicativo ' +
+        'para a pasta do executavel: ' + ExtractFilePath(ParamStr(0)));
     Folder := TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'LogicaPDV');
     ForceDirectories(Folder);
     FConnection.LoginPrompt := False;
@@ -51,7 +57,7 @@ begin
       'product_id INTEGER NOT NULL REFERENCES products(id), name TEXT NOT NULL,' +
       'quantity INTEGER NOT NULL CHECK(quantity > 0), unit_cents INTEGER NOT NULL)');
   except
-    FConnection.Free;
+    FreeAndNil(FConnection);
     raise;
   end;
 end;
