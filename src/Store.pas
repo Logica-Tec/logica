@@ -3,11 +3,11 @@ unit Store;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, Data.DB,
+  System.SysUtils, System.Classes, System.IOUtils, System.IniFiles, Data.DB,
   FireDAC.Comp.Client, FireDAC.Stan.Def, FireDAC.Stan.Async,
-  FireDAC.Stan.Param, FireDAC.DApt, FireDAC.Phys, FireDAC.Phys.SQLite,
-  FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.UI.Intf,
-  FireDAC.VCLUI.Wait, FireDAC.Comp.UI;
+  FireDAC.Stan.Param, FireDAC.DApt, FireDAC.Phys, FireDAC.Phys.FB,
+  FireDAC.Phys.FBDef, FireDAC.Stan.Intf, FireDAC.UI.Intf,
+  FireDAC.VCLUI.Wait, FireDAC.Comp.UI, FireDAC.VCLUI.Login;
 
 type
   TStore = class
@@ -24,38 +24,45 @@ implementation
 
 constructor TStore.Create;
 var
-  Folder: string;
-  Driver: TFDPhysSQLiteDriverLink;
+  Config: TIniFile;
+  ConfigPath, ClientPath: string;
+  Driver: TFDPhysFBDriverLink;
 begin
   inherited;
   FConnection := TFDConnection.Create(nil);
   try
-    Driver := TFDPhysSQLiteDriverLink.Create(FConnection);
-    Driver.VendorLib := TPath.Combine(ExtractFilePath(ParamStr(0)), 'sqlite3.dll');
-    if not FileExists(Driver.VendorLib) then
-      raise Exception.Create('Copie sqlite3.dll da mesma arquitetura do aplicativo ' +
-        'para a pasta do executavel: ' + ExtractFilePath(ParamStr(0)));
-    Folder := TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'LogicaPDV');
-    ForceDirectories(Folder);
-    FConnection.LoginPrompt := False;
-    FConnection.Params.Values['DriverID'] := 'SQLite';
-    FConnection.Params.Values['Database'] := TPath.Combine(Folder, 'pdv.sqlite');
+    ConfigPath := TPath.Combine(ExtractFilePath(ParamStr(0)), 'LogicaPDV.ini');
+    if not FileExists(ConfigPath) then
+      raise Exception.Create('Copie LogicaPDV.ini.example para LogicaPDV.ini ' +
+        'ao lado do executavel e configure o banco Firebird.');
+    Config := TIniFile.Create(ConfigPath);
+    try
+      Driver := TFDPhysFBDriverLink.Create(FConnection);
+      ClientPath := Config.ReadString('Firebird', 'ClientLibrary', 'fbclient.dll');
+      if not TPath.IsPathRooted(ClientPath) then
+        ClientPath := TPath.Combine(ExtractFilePath(ParamStr(0)), ClientPath);
+      if not FileExists(ClientPath) then
+        raise Exception.Create('Cliente Firebird nao encontrado: ' + ClientPath);
+      Driver.VendorLib := ClientPath;
+      FConnection.Params.Values['DriverID'] := 'FB';
+      FConnection.Params.Values['Protocol'] := 'TCPIP';
+      FConnection.Params.Values['Server'] := Config.ReadString('Firebird', 'Server', 'localhost');
+      FConnection.Params.Values['Port'] := Config.ReadString('Firebird', 'Port', '3050');
+      FConnection.Params.Values['Database'] := Config.ReadString('Firebird', 'Database', '');
+      FConnection.Params.Values['CharacterSet'] := 'UTF8';
+      FConnection.Params.Values['SQLDialect'] := '3';
+      FConnection.Params.Values['User_Name'] := Config.ReadString('Firebird', 'UserName', 'SYSDBA');
+      if FConnection.Params.Values['Database'] = '' then
+        raise Exception.Create('Configure Database em LogicaPDV.ini.');
+    finally
+      Config.Free;
+    end;
+    // A senha e solicitada pelo FireDAC, sem gravacao no arquivo INI.
+    FConnection.LoginPrompt := True;
     FConnection.Connected := True;
-    FConnection.ExecSQL('PRAGMA foreign_keys = ON');
-    FConnection.ExecSQL('PRAGMA busy_timeout = 5000');
-    FConnection.ExecSQL('CREATE TABLE IF NOT EXISTS products (' +
-      'id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,' +
-      'price_cents INTEGER NOT NULL CHECK(price_cents >= 0),' +
-      'stock INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0))');
-    FConnection.ExecSQL('CREATE TABLE IF NOT EXISTS customers (' +
-      'id INTEGER PRIMARY KEY, name TEXT NOT NULL, document TEXT, phone TEXT)');
-    FConnection.ExecSQL('CREATE TABLE IF NOT EXISTS sales (' +
-      'id INTEGER PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime(''now'',''localtime'')),' +
-      'customer_id INTEGER REFERENCES customers(id), total_cents INTEGER NOT NULL)');
-    FConnection.ExecSQL('CREATE TABLE IF NOT EXISTS sale_items (' +
-      'id INTEGER PRIMARY KEY, sale_id INTEGER NOT NULL REFERENCES sales(id),' +
-      'product_id INTEGER NOT NULL REFERENCES products(id), name TEXT NOT NULL,' +
-      'quantity INTEGER NOT NULL CHECK(quantity > 0), unit_cents INTEGER NOT NULL)');
+    // Falha cedo se o script de criacao ainda nao foi executado.
+    with Query('SELECT FIRST 1 id FROM products') do
+      Free;
   except
     FreeAndNil(FConnection);
     raise;

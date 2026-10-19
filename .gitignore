@@ -10,3 +10,7 @@ Win64/
 *.sqlite
 *.sqlite-*
 *.dproj.local
+
+LogicaPDV.ini
+*.fdb
+*.fbk

@@ -285,13 +285,13 @@ begin
   try
     DB.Connection.StartTransaction;
     try
-      if CustomerCombo.ItemIndex > 0 then
-        DB.Connection.ExecSQL('INSERT INTO sales(customer_id,total_cents) VALUES(?,?)',
-          [NativeInt(CustomerCombo.Items.Objects[CustomerCombo.ItemIndex]), Total])
-      else
-        DB.Connection.ExecSQL('INSERT INTO sales(total_cents) VALUES(?)', [Total]);
-      Q := DB.Query('SELECT last_insert_rowid() AS id');
+      Q := DB.Query('SELECT NEXT VALUE FOR sale_id_seq AS id FROM RDB$DATABASE');
       try SaleID := Q.FieldByName('id').AsLargeInt; finally Q.Free; end;
+      if CustomerCombo.ItemIndex > 0 then
+        DB.Connection.ExecSQL('INSERT INTO sales(id,customer_id,total_cents) VALUES(?,?,?)',
+          [SaleID, NativeInt(CustomerCombo.Items.Objects[CustomerCombo.ItemIndex]), Total])
+      else
+        DB.Connection.ExecSQL('INSERT INTO sales(id,total_cents) VALUES(?,?)', [SaleID, Total]);
       Lines.Add('COMPROVANTE DE VENDA - SEM VALOR FISCAL');
       Lines.Add('Venda: ' + IntToStr(SaleID));
       Lines.Add('Data: ' + DateTimeToStr(Now));
