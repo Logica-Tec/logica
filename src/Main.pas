@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.Grids, Vcl.Dialogs,
-  Vcl.Printers, FireDAC.Comp.Client, Data.DB, Store;
+  Vcl.Printers, FireDAC.Comp.Client, FireDAC.Stan.Param, Data.DB, Store;
 
 type
   TCartItem = record
@@ -299,9 +299,9 @@ begin
       Lines.Add('');
       for Item in Cart do
       begin
-        DB.Connection.ExecSQL('UPDATE products SET stock=stock-? WHERE id=? AND stock>=?',
-          [Item.Quantity, Item.ProductID, Item.Quantity]);
-        if DB.Connection.RowsAffected <> 1 then
+        if DB.Connection.ExecSQL(
+          'UPDATE products SET stock=stock-? WHERE id=? AND stock>=?',
+          [Item.Quantity, Item.ProductID, Item.Quantity]) <> 1 then
           raise Exception.Create('Estoque insuficiente. Venda nao gravada.');
         DB.Connection.ExecSQL('INSERT INTO sale_items(sale_id,product_id,name,quantity,unit_cents)' +
           ' VALUES(?,?,?,?,?)', [SaleID, Item.ProductID, Item.Name, Item.Quantity, Item.UnitCents]);
